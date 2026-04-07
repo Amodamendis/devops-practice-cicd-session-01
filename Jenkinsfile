@@ -59,25 +59,25 @@ pipeline {
         // STAGE 4: Deploy to Kubernetes
         stage('Deploy to Production') {
             when {
-                // Only deploy when on 'main' branch
                 branch 'main'
             }
             steps {
-                // Pause pipeline and wait for manual approval before deploying
+                // Pause and wait for manual approval
                 input 'Deploy to Production?'
-
-                // Prevent older builds from deploying AFTER a newer build
                 milestone(1)
 
-                // Deploy to Kubernetes using the kubeconfig credential stored in Jenkins
-                // kubeconfigId    → Jenkins credential ID that holds ~/.kube/config file
-                // configs         → The Kubernetes YAML file to apply
-                // enableConfigSubstitution → Replaces $DOCKER_IMAGE_NAME and $BUILD_NUMBER in yaml
-                kubernetesDeploy(
-                    kubeconfigId: 'k8s-kubeconfig',
-                    configs: 'my-app-deploy.yaml',
-                    enableConfigSubstitution: true
-                )
+                // Use withKubeConfig instead of kubernetesDeploy
+                withKubeConfig([credentialsId: 'k8s-kubeconfig']) {
+                    // Replace variables in yaml and apply to Kubernetes
+                    sh '''
+                        # Replace $DOCKER_IMAGE_NAME and $BUILD_NUMBER in yaml file
+                        sed -i "s|\$DOCKER_IMAGE_NAME|${DOCKER_IMAGE_NAME}|g" my-app-deploy.yaml
+                        sed -i "s|\$BUILD_NUMBER|${BUILD_NUMBER}|g" my-app-deploy.yaml
+
+                        # Apply to Kubernetes cluster
+                        kubectl apply -f my-app-deploy.yaml
+                    '''
+                }
             }
         }
 
