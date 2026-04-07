@@ -37,7 +37,20 @@ pipeline{
                 }
             }
         }
-         
+        stage('Deploy to production')
+            when {
+                branch 'main'
+            }
+            steps {
+                input 'Deploy to Production?'
+                milestone(1)
+                kubernetesDeploy(
+                    kubeconfigID: 'k8s-kubeconfig',
+                    configs: 'my-app-deploy.yaml',
+                    enableConfigSubstitution: true
+                )
+            }
+
         
     }
 
