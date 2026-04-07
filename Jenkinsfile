@@ -69,17 +69,25 @@ pipeline {
                 // Use withKubeConfig instead of kubernetesDeploy
                 withKubeConfig([credentialsId: 'k8s-kubeconfig']) {
                     // Replace variables in yaml and apply to Kubernetes
-                    sh '''
-                        # Replace $DOCKER_IMAGE_NAME and $BUILD_NUMBER in yaml file
-                        sed -i "s|\$DOCKER_IMAGE_NAME|${DOCKER_IMAGE_NAME}|g" my-app-deploy.yaml
-                        sed -i "s|\$BUILD_NUMBER|${BUILD_NUMBER}|g" my-app-deploy.yaml
+                    sh """
+                        # Create temp yaml with actual values substituted
+                        cp my-app-deploy.yaml my-app-deploy-temp.yaml
+                        sed -i 's|\$DOCKER_IMAGE_NAME|${DOCKER_IMAGE_NAME}|g' my-app-deploy-temp.yaml
+                        sed -i 's|\$BUILD_NUMBER|${BUILD_NUMBER}|g' my-app-deploy-temp.yaml
 
-                        # Apply to Kubernetes cluster
-                        kubectl apply -f my-app-deploy.yaml
-                    '''
+                        # Verify — should show: amodamendis/app:5
+                        echo "Image being deployed:"
+                        grep image my-app-deploy-temp.yaml
+
+                        # Apply to kubernetes
+                        kubectl apply -f my-app-deploy-temp.yaml
+                        rm my-app-deploy-temp.yaml
+                    """
                 }
             }
         }
+
+
 
     }
 }
