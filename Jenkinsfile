@@ -12,9 +12,12 @@ pipeline {
             steps {
                 echo 'Running build automation'
                 // Install all npm packages (--legacy-peer-deps avoids version conflicts)
-                sh 'npm install --legacy-peer-deps'
-                // Build React app → creates /dist folder
-                sh 'npm run build'
+                // Use full path to npm
+                sh '''
+                    export PATH=$PATH:/usr/bin
+                    npm install --legacy-peer-deps
+                    npm run build
+                '''
             }
         }
         // STAGE 2: Build Docker Image
