@@ -1,24 +1,34 @@
-# 1. Use the optimized Node 20 Alpine image we identified earlier
+# Use official Node.js 20 lightweight Alpine Linux image
+# Alpine = very small size (~5MB vs ~900MB for full Ubuntu)
 FROM node:20-alpine
 
-# 2. Set the working directory inside the container (just like your screenshot)
+# Set working directory inside container
+# All following commands run from this folder
 WORKDIR /app
 
-# 3. Copy ONLY the package files first
+# Copy package.json first (before rest of code)
+# This is a Docker best practice — allows layer caching
+# If package.json hasn't changed, npm install won't re-run
 COPY package.json .
 COPY package-lock.json .
 
-# 4. Install your project dependencies
+# Install exact versions from package-lock.json
+# --legacy-peer-deps = ignore peer dependency version conflicts
 RUN npm ci --legacy-peer-deps
 
-# 5. Copy the rest of your project files into the container
+# Copy ALL remaining project files into the container
+# (Done AFTER npm install to use Docker layer cache)
 COPY . .
 
-# 6. Build the React app (creates the /dist folder)
+# Build the React app using Vite
+# Creates a /dist folder with production-ready files
 RUN npm run build
 
-# 7. Expose the port that Vite uses for its preview server
+# Tell Docker this container listens on port 4173
+# (Vite preview server default port)
 EXPOSE 4173
 
-# 8. Start the app (Unlike 'node app.js', Vite needs to serve the built files)
-CMD ["npm", "run", "preview", "--", "--host"]
+# Start the Vite preview server when container runs
+# --host 0.0.0.0 = listen on ALL network interfaces
+# (without this, app only accessible inside container!)
+CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0"]

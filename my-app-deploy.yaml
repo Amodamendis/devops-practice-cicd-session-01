@@ -1,49 +1,83 @@
+# Kubernetes SERVICE
 kind: Service
 apiVersion: v1
 metadata:
-  name: my-app-Service
+  # Name of the service inside Kubernetes
+  name: my-app-service
 spec:
+  # NodePort = accessible from outside the cluster via EC2 IP
   type: NodePort
   selector:
+    # Match pods that have label app=app (connects service to deployment)
     app: app
   ports:
   - protocol: TCP
-    port: 8080
-    NodePort: 30950
+    # Port exposed inside the cluster
+    port: 4173
+    # Port on the container to forward traffic to
+    targetPort: 4173
+    # Port accessible from outside on EC2 (open this in security group!)
+    # Access via: http://<worker-ec2-ip>:30950
+    nodePort: 30950
+
 ---
 
+# Kubernetes DEPLOYMENT
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  # Name of the deployment
   name: app
   labels:
     app: app
 spec:
+  # Run 3 copies (pods) of the app for high availability
   replicas: 3
+
   selector:
     matchLabels:
+      # Must match the labels in template below
       app: app
+
   template:
     metadata:
       labels:
+        # Label on each pod — must match selector above
         app: app
     spec:
       containers:
       - name: app
+        # Image from Docker Hub — $DOCKER_IMAGE_NAME and $BUILD_NUMBER
+        # are replaced by Jenkins at deploy time
+        # e.g. becomes → amodamendis/app:42
         image: $DOCKER_IMAGE_NAME:$BUILD_NUMBER
+
         ports:
-        - containerPort: 8080
+        # Port your React/Vite app listens on inside the container
+        - containerPort: 4173
+
+        # ── Health Check ──────────────────────────
         livenessProbe:
           httpGet:
+            # Kubernetes checks this endpoint to see if app is alive
             path: /
-            port: 8080
-          initialDelaySeconds: 10
-          timeoutSeconds: 1
+            port: 4173
+          # Wait 15 seconds after container starts before first check
+          initialDelaySeconds: 15
+          # Timeout for each health check request
+          timeoutSeconds: 2
+          # Check every 10 seconds
           periodSeconds: 10
+
+        # ── Resource Limits ───────────────────────
         resources:
           requests:
+            # Minimum CPU guaranteed to each pod (300 millicores = 0.3 CPU)
             cpu: 300m
-
-            
-
-
+            # Minimum RAM guaranteed to each pod
+            memory: 256Mi
+          limits:
+            # Maximum CPU each pod can use
+            cpu: 500m
+            # Maximum RAM each pod can use (killed if exceeds this)
+            memory: 512Mi
